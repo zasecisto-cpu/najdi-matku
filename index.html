@@ -1147,6 +1147,7 @@
         let smokeX = 0;
         let smokeY = 0;
         let hasUsedSmoke = false;
+        let smokePrepared = false;
 
         let selectedDifficulty = 'pokrocily';
 
@@ -2335,6 +2336,32 @@
             const worldX = canvasX + cameraX;
             const worldY = canvasY + cameraY;
 
+            // If smoke is prepared, release it here instead of normal click processing
+            if (smokePrepared) {
+                // Deduct +3s time penalty
+                startTime -= 3000;
+                
+                // Enable smoke at click coordinates
+                smokeActive = true;
+                smokeTimeLeft = 2.5;
+                smokeX = worldX;
+                smokeY = worldY;
+                hasUsedSmoke = true;
+                smokePrepared = false;
+                
+                canvas.style.cursor = 'grab';
+                sounds.playSmokeHiss();
+                
+                const btnSmoke = document.getElementById('btn-smoke');
+                if (btnSmoke) {
+                    btnSmoke.disabled = true;
+                    btnSmoke.style.borderColor = '';
+                    btnSmoke.style.boxShadow = '';
+                    btnSmoke.innerHTML = '<span style="font-size: 1.4rem;">💨</span><span>Dýmák</span>';
+                }
+                return;
+            }
+
             // Verify distance to the Queen (Matka.png: center is queen.x, queen.y)
             const dx = worldX - queen.x;
             const dy = worldY - queen.y;
@@ -2524,9 +2551,14 @@
             smokeActive = false;
             smokeTimeLeft = 0;
             hasUsedSmoke = false;
+            smokePrepared = false;
+            canvas.style.cursor = 'grab';
             const btnSmoke = document.getElementById('btn-smoke');
             if (btnSmoke) {
                 btnSmoke.disabled = false;
+                btnSmoke.style.borderColor = '';
+                btnSmoke.style.boxShadow = '';
+                btnSmoke.innerHTML = '<span style="font-size: 1.4rem;">💨</span><span>Dýmák</span>';
             }
             
             // Set HUD difficulty label
@@ -2837,22 +2869,21 @@
             if (!gameActive || hasUsedSmoke) return;
             sounds.playTap();
             
-            // Deduct +3s time penalty
-            startTime -= 3000;
-            
-            // Enable smoke
-            smokeActive = true;
-            smokeTimeLeft = 2.5;
-            hasUsedSmoke = true;
-            
-            // Center in world coordinates
-            const viewportW = canvas.width / dpr;
-            const viewportH = canvas.height / dpr;
-            smokeX = cameraX + viewportW / 2;
-            smokeY = cameraY + viewportH / 2;
-            
-            sounds.playSmokeHiss();
-            btnSmoke.disabled = true;
+            if (smokePrepared) {
+                // Cancel targeting mode
+                smokePrepared = false;
+                canvas.style.cursor = 'grab';
+                btnSmoke.style.borderColor = '';
+                btnSmoke.style.boxShadow = '';
+                btnSmoke.innerHTML = '<span style="font-size: 1.4rem;">💨</span><span>Dýmák</span>';
+            } else {
+                // Enter targeting mode
+                smokePrepared = true;
+                canvas.style.cursor = 'crosshair';
+                btnSmoke.style.borderColor = 'var(--color-primary)';
+                btnSmoke.style.boxShadow = '0 0 15px var(--color-primary-glow)';
+                btnSmoke.innerHTML = '<span style="font-size: 1.4rem;">💨</span><span>Klikni...</span>';
+            }
         });
 
         // Bind Share Result button click
