@@ -69,7 +69,7 @@
             padding: 40px 24px;
             text-align: center;
             overflow-y: auto;
-            justify-content: flex-start;
+            display: block;
             -webkit-overflow-scrolling: touch;
         }
 
@@ -250,6 +250,16 @@
             color: #9ca3af;
             box-shadow: none;
             cursor: not-allowed;
+        }
+
+        .menu-content-wrapper {
+            width: 100%;
+            max-width: 360px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 20px;
         }
 
         /* Preloader Progress */
@@ -669,58 +679,56 @@
     <!-- Start Screen -->
     <div id="start-screen" class="screen">
         <div class="start-bg-hex"></div>
-        
-
-        <div class="logo-container">
-            <h1>Najdi královnu</h1>
-        </div>
-        
-        <p class="subtitle">Najdi včelí královnu v obrovském rojícím se úlu co nejrychleji!</p>
-        
-
-
-        <!-- Leaderboard Card on Menu -->
-        <div id="menu-leaderboard-card" class="legend-card" style="margin-top: 0; margin-bottom: 24px; padding: 16px; display: none;">
-            <h2 class="legend-title" style="margin-bottom: 10px; font-size: 0.85rem;">🏆 Tabulka nejlepších</h2>
-            <ol id="menu-leaderboard-list" style="font-size: 0.85rem; text-align: left; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: #d1d5db;"></ol>
-            <div id="leaderboard-more-btn-container" style="text-align: center; margin-top: 10px; display: none;">
-                <button id="btn-leaderboard-more" style="background: none; border: none; color: var(--color-primary); font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: underline; outline: none; padding: 4px 8px;">Zobrazit další</button>
-            </div>
-        </div>
- 
-        <div id="high-score-display" class="high-score-badge" style="display: none;">
-            🏆 Nejlepší čas: <span id="high-score-val">0.00</span> s
-        </div>
-
-        <!-- Difficulty Selection -->
-        <div id="difficulty-selector-container" style="margin-bottom: 24px; display: none; position: relative; z-index: 5;">
-            <p class="legend-title" style="margin-bottom: 12px; font-size: 0.85rem;">Vyber obtížnost</p>
-            <div style="display: flex; gap: 8px; justify-content: center;">
-                <button class="btn-difficulty" data-level="zacatecnik">Začátečník</button>
-                <button class="btn-difficulty active" data-level="pokrocily">Pokročilý</button>
-                <button class="btn-difficulty" data-level="profesional">Profesionál</button>
-            </div>
-        </div>
-
-        <!-- Game Mode & Queen Marking Selection -->
-        <div id="mode-selector-container" style="margin-bottom: 24px; display: none; position: relative; z-index: 5; background: rgba(0,0,0,0.15); border-radius: 16px; padding: 14px 16px; width: 100%; max-width: 340px; border: 1px solid rgba(255,255,255,0.03);">
-            <p class="legend-title" style="margin-bottom: 8px; font-size: 0.8rem;">Herní mód</p>
-            <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 12px;">
-                <button class="btn-difficulty active" id="btn-mode-training" style="padding: 8px 14px; font-size: 0.8rem;">Trénink</button>
-                <button class="btn-difficulty" id="btn-mode-daily" style="padding: 8px 14px; font-size: 0.8rem;">Denní výzva</button>
+        <div class="menu-content-wrapper">
+            <div class="logo-container">
+                <h1>Najdi královnu</h1>
             </div>
             
-            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #d1d5db; cursor: pointer; user-select: none;">
-                <input type="checkbox" id="chk-mark-queen" checked style="accent-color: var(--color-primary); width: 15px; height: 15px; cursor: pointer;">
-                <span>Označit královnu (bílá tečka na zádech)</span>
-            </label>
-        </div>
+            <p class="subtitle">Najdi včelí královnu v obrovském rojícím se úlu co nejrychleji!</p>
+            
+            <!-- Leaderboard Card on Menu -->
+            <div id="menu-leaderboard-card" class="legend-card" style="margin-top: 0; margin-bottom: 24px; padding: 16px; display: none;">
+                <h2 class="legend-title" style="margin-bottom: 10px; font-size: 0.85rem;">🏆 Tabulka nejlepších</h2>
+                <ol id="menu-leaderboard-list" style="font-size: 0.85rem; text-align: left; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: #d1d5db;"></ol>
+                <div id="leaderboard-more-btn-container" style="text-align: center; margin-top: 10px; display: none;">
+                    <button id="btn-leaderboard-more" style="background: none; border: none; color: var(--color-primary); font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: underline; outline: none; padding: 4px 8px;">Zobrazit další</button>
+                </div>
+            </div>
+     
+            <div id="high-score-display" class="high-score-badge" style="display: none;">
+                🏆 Nejlepší čas: <span id="high-score-val">0.00</span> s
+            </div>
 
-        <button id="btn-play" class="btn-play" disabled>Načítání...</button>
-        
-        <!-- Loading bar -->
-        <div id="loader" class="loader-container" style="display: block;">
-            <div id="loader-bar" class="loader-bar"></div>
+            <!-- Difficulty Selection -->
+            <div id="difficulty-selector-container" style="margin-bottom: 24px; display: none; position: relative; z-index: 5;">
+                <p class="legend-title" style="margin-bottom: 12px; font-size: 0.85rem;">Vyber obtížnost</p>
+                <div style="display: flex; gap: 8px; justify-content: center;">
+                    <button class="btn-difficulty" data-level="zacatecnik">Začátečník</button>
+                    <button class="btn-difficulty active" data-level="pokrocily">Pokročilý</button>
+                    <button class="btn-difficulty" data-level="profesional">Profesionál</button>
+                </div>
+            </div>
+
+            <!-- Game Mode & Queen Marking Selection -->
+            <div id="mode-selector-container" style="margin-bottom: 24px; display: none; position: relative; z-index: 5; background: rgba(0,0,0,0.15); border-radius: 16px; padding: 14px 16px; width: 100%; max-width: 340px; border: 1px solid rgba(255,255,255,0.03);">
+                <p class="legend-title" style="margin-bottom: 8px; font-size: 0.8rem;">Herní mód</p>
+                <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 12px;">
+                    <button class="btn-difficulty active" id="btn-mode-training" style="padding: 8px 14px; font-size: 0.8rem;">Trénink</button>
+                    <button class="btn-difficulty" id="btn-mode-daily" style="padding: 8px 14px; font-size: 0.8rem;">Denní výzva</button>
+                </div>
+                
+                <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #d1d5db; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="chk-mark-queen" checked style="accent-color: var(--color-primary); width: 15px; height: 15px; cursor: pointer;">
+                    <span>Označit královnu (bílá tečka na zádech)</span>
+                </label>
+            </div>
+
+            <button id="btn-play" class="btn-play" disabled>Načítání...</button>
+            
+            <!-- Loading bar -->
+            <div id="loader" class="loader-container" style="display: block;">
+                <div id="loader-bar" class="loader-bar"></div>
+            </div>
         </div>
     </div>
 
