@@ -613,7 +613,47 @@
             box-shadow: 0 0 12px var(--color-primary-glow);
         }
 
+        /* Floating Dýmák Button */
+        .smoke-btn-container {
+            position: absolute;
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            left: 16px;
+            width: 80px;
+            height: 80px;
+            z-index: 20;
+            pointer-events: auto;
+        }
 
+        .btn-smoke {
+            width: 100%;
+            height: 100%;
+            background: var(--color-glass);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--color-glass-border);
+            border-radius: 20px;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transition: transform 0.1s, background 0.2s, opacity 0.2s;
+        }
+
+        .btn-smoke:active {
+            transform: scale(0.92);
+        }
+
+        .btn-smoke:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: rgba(15, 23, 42, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -649,6 +689,20 @@
                 <button class="btn-difficulty active" data-level="pokrocily">Pokročilý</button>
                 <button class="btn-difficulty" data-level="profesional">Profesionál</button>
             </div>
+        </div>
+
+        <!-- Game Mode & Queen Marking Selection -->
+        <div id="mode-selector-container" style="margin-bottom: 24px; display: none; position: relative; z-index: 5; background: rgba(0,0,0,0.15); border-radius: 16px; padding: 14px 16px; width: 100%; max-width: 340px; border: 1px solid rgba(255,255,255,0.03);">
+            <p class="legend-title" style="margin-bottom: 8px; font-size: 0.8rem;">Herní mód</p>
+            <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 12px;">
+                <button class="btn-difficulty active" id="btn-mode-training" style="padding: 8px 14px; font-size: 0.8rem;">Trénink</button>
+                <button class="btn-difficulty" id="btn-mode-daily" style="padding: 8px 14px; font-size: 0.8rem;">Denní výzva</button>
+            </div>
+            
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #d1d5db; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="chk-mark-queen" checked style="accent-color: var(--color-primary); width: 15px; height: 15px; cursor: pointer;">
+                <span>Označit královnu (bílá tečka na zádech)</span>
+            </label>
         </div>
 
         <button id="btn-play" class="btn-play" disabled>Načítání...</button>
@@ -687,6 +741,14 @@
             </div>
         </div>
 
+        <!-- Floating Dýmák Button -->
+        <div class="smoke-btn-container">
+            <button id="btn-smoke" class="btn-smoke">
+                <span style="font-size: 1.4rem;">💨</span>
+                <span>Dýmák</span>
+            </button>
+        </div>
+
         <!-- Touch Drag Swipe Hint Overlay -->
         <div id="drag-tip" class="drag-tip">
             <span class="drag-icon">👈</span>
@@ -723,7 +785,10 @@
             <ol id="win-leaderboard-list" style="font-size: 0.85rem; padding-left: 20px; color: #d1d5db; display: flex; flex-direction: column; gap: 4px;"></ol>
         </div>
         
-        <button id="btn-restart-win" class="btn-restart-win">Hrát znovu</button>
+        <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
+            <button id="btn-restart-win" class="btn-restart-win" style="flex: 1;">Hrát znovu</button>
+            <button id="btn-share-win" class="btn-restart-win" style="flex: 1; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; box-shadow: none;">Sdílet výsledek</button>
+        </div>
     </dialog>
 
     <script>
@@ -993,6 +1058,35 @@
                     osc.stop(now + idx * 0.07 + 0.5);
                 });
             }
+
+            playSmokeHiss() {
+                this.init();
+                if (!this.ctx) return;
+                
+                const now = this.ctx.currentTime;
+                const buffer = this.createNoiseBuffer();
+                if (!buffer) return;
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, now);
+                filter.frequency.exponentialRampToValueAtTime(200, now + 1.8);
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.0, now);
+                gain.gain.linearRampToValueAtTime(0.28, now + 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                noise.start(now);
+                noise.stop(now + 1.85);
+            }
         }
 
         const sounds = new SoundEngine();
@@ -1007,12 +1101,41 @@
         let gameActive = false;
         let startTime = 0;
         let elapsedTime = 0;
+        let lastFrameTime = 0;
         let animationFrameId = null;
+
+        // Seeded random number generator (Mulberry32) for Daily Challenge
+        let selectedMode = 'training'; // 'training' or 'daily'
+        let isQueenMarked = true;
+        let seed = 12345;
+        function seededRandom() {
+            let t = seed += 0x6D2B79F5;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        }
+        function random() {
+            return selectedMode === 'daily' ? seededRandom() : Math.random();
+        }
+        function getDailySeed() {
+            const d = new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return parseInt(`${yyyy}${mm}${dd}`, 10);
+        }
 
         // Stress & Penalty mechanics
         let wrongClicks = 0;
         let timeOfThirdWrongClick = null;
         let stressFactor = 0;
+
+        // Dýmák (Smoke Puff) mechanics
+        let smokeActive = false;
+        let smokeTimeLeft = 0; // seconds
+        let smokeX = 0;
+        let smokeY = 0;
+        let hasUsedSmoke = false;
 
         let selectedDifficulty = 'pokrocily';
 
@@ -1119,6 +1242,7 @@
                             btnPlay.textContent = 'Spustit hru';
                             btnPlay.removeAttribute('disabled');
                             document.getElementById('difficulty-selector-container').style.display = 'block';
+                            document.getElementById('mode-selector-container').style.display = 'block';
                         }, 300);
                     }
                 };
@@ -1131,6 +1255,7 @@
                         btnPlay.textContent = 'Spustit hru (chyba načítání)';
                         btnPlay.removeAttribute('disabled');
                         document.getElementById('difficulty-selector-container').style.display = 'block';
+                        document.getElementById('mode-selector-container').style.display = 'block';
                     }
                 };
                 asset.img.src = asset.src;
@@ -1318,34 +1443,41 @@
                 this.speed = crawlSpeed;
 
                 const margin = 120;
-                this.baseX = margin + Math.random() * (WORLD_WIDTH - margin * 2);
-                this.baseY = margin + Math.random() * (WORLD_HEIGHT - margin * 2);
-                this.baseAngle = Math.random() * Math.PI * 2;
+                this.baseX = margin + random() * (WORLD_WIDTH - margin * 2);
+                this.baseY = margin + random() * (WORLD_HEIGHT - margin * 2);
+                this.baseAngle = random() * Math.PI * 2;
 
                 this.x = this.baseX;
                 this.y = this.baseY;
                 this.angle = this.baseAngle;
+                this.angleStart = this.baseAngle;
 
-                this.walkCycle = Math.random() * 100;
+                this.walkCycle = random() * 100;
                 // 35% of bees have active wings
-                this.flutterSpeed = Math.random() < 0.35 ? 70 + Math.random() * 55 : 0;
+                this.flutterSpeed = random() < 0.35 ? 70 + random() * 55 : 0;
 
-                this.phaseX = Math.random() * Math.PI * 2;
-                this.phaseY = Math.random() * Math.PI * 2;
-                this.phaseAngle = Math.random() * Math.PI * 2;
+                this.phaseX = random() * Math.PI * 2;
+                this.phaseY = random() * Math.PI * 2;
+                this.phaseAngle = random() * Math.PI * 2;
                 
-                this.shiverSpeedX = 0.08 + Math.random() * 0.06;
-                this.shiverSpeedY = 0.08 + Math.random() * 0.06;
-                this.shiverSpeedAngle = 0.12 + Math.random() * 0.08;
+                this.shiverSpeedX = 0.08 + random() * 0.06;
+                this.shiverSpeedY = 0.08 + random() * 0.06;
+                this.shiverSpeedAngle = 0.12 + random() * 0.08;
 
-                this.ampX = 0.8 + Math.random() * 1.2;
-                this.ampY = 0.8 + Math.random() * 1.2;
-                this.ampAngle = 0.018 + Math.random() * 0.022; // rotation shiver
+                this.ampX = 0.8 + random() * 1.2;
+                this.ampY = 0.8 + random() * 1.2;
+                this.ampAngle = 0.018 + random() * 0.022; // rotation shiver
             }
 
-            update(time) {
-                // 1. Crawl Forward & Random Steering Walk
-                this.baseAngle += (Math.random() - 0.5) * 0.09;
+            update(time, dt) {
+                const speedMultiplier = dt * 60;
+
+                // 1. Calculate steering angle directly from time to ensure frame-rate independence and determinism
+                this.baseAngle = this.angleStart + (
+                    Math.sin(time * 0.6 + this.phaseX) * 0.45 +
+                    Math.cos(time * 1.1 + this.phaseY) * 0.3 +
+                    Math.sin(time * 1.8 + this.phaseAngle) * 0.15
+                );
 
                 // Steer back to center when hitting boundary safety zone
                 const borderMargin = 120;
@@ -1354,12 +1486,12 @@
                     const angleToCenter = Math.atan2(WORLD_HEIGHT / 2 - this.baseY, WORLD_WIDTH / 2 - this.baseX);
                     let diff = angleToCenter - this.baseAngle;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-                    this.baseAngle += diff * 0.12;
+                    this.angleStart += diff * 0.12 * speedMultiplier;
                 }
 
                 // Crawl forward along heading
-                this.baseX += Math.cos(this.baseAngle) * this.speed;
-                this.baseY += Math.sin(this.baseAngle) * this.speed;
+                this.baseX += Math.cos(this.baseAngle) * this.speed * speedMultiplier;
+                this.baseY += Math.sin(this.baseAngle) * this.speed * speedMultiplier;
 
                 // 2. Shiver vibrations
                 this.x = this.baseX + Math.sin(time * this.shiverSpeedX + this.phaseX) * this.ampX;
@@ -1371,7 +1503,7 @@
                 this.angle = this.baseAngle + sway + shiverAngle;
 
                 // Progress the walking stride
-                this.walkCycle += this.speed * 0.22;
+                this.walkCycle += this.speed * 0.22 * speedMultiplier;
             }
 
             draw() {
@@ -1400,6 +1532,17 @@
 
                 // 4. Draw animated wings (on top of body)
                 drawWings(ctx, this.width, this.height, performance.now() / 1000, this.flutterSpeed);
+                
+                // 4.5. Draw marked dot if this is Queen and marked is active
+                if (this.type === 'matka' && isQueenMarked) {
+                    ctx.fillStyle = '#ffffff'; // White color for 2026!
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 2.0;
+                    ctx.beginPath();
+                    ctx.arc(0, -18, 5.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             }
@@ -1411,22 +1554,22 @@
             
             // 1. Spawn Worker Bees (Delnice)
             for (let i = 0; i < NUM_WORKERS; i++) {
-                const speed = 0.5 + Math.random() * 0.7; // Walk speed
+                const speed = 0.5 + random() * 0.7; // Walk speed
                 bees.push(new Bee('delnice', workerImg, 60, 100, speed));
             }
 
             // 2. Spawn Drone Bees (Trubec)
             for (let i = 0; i < NUM_DRONES; i++) {
-                const speed = 0.4 + Math.random() * 0.5; // Drone crawl speed
+                const speed = 0.4 + random() * 0.5; // Drone crawl speed
                 bees.push(new Bee('trubec', droneImg, 70, 110, speed));
             }
 
             // 3. Spawn Queen Bee (Matka) - EXACTLY ONE
-            const queenSpeed = 0.35 + Math.random() * 0.4;
+            const queenSpeed = 0.35 + random() * 0.4;
             queen = new Bee('matka', queenImg, 60, 140, queenSpeed);
             
             // Difficulty setting: chance to spawn outside the starting viewport
-            const spawnOutside = Math.random() < settings.spawnOutsideProb;
+            const spawnOutside = random() < settings.spawnOutsideProb;
             
             const screenLeft = 1000 - viewportW / 2;
             const screenRight = 1000 + viewportW / 2;
@@ -1436,8 +1579,8 @@
             let validPosition = false;
             while (!validPosition) {
                 const margin = 120;
-                queen.baseX = margin + Math.random() * (WORLD_WIDTH - margin * 2);
-                queen.baseY = margin + Math.random() * (WORLD_HEIGHT - margin * 2);
+                queen.baseX = margin + random() * (WORLD_WIDTH - margin * 2);
+                queen.baseY = margin + random() * (WORLD_HEIGHT - margin * 2);
 
                 const isInsideViewportBox = (queen.baseX >= screenLeft - 60 && queen.baseX <= screenRight + 60 &&
                                              queen.baseY >= screenTop - 60 && queen.baseY <= screenBottom + 60);
@@ -1460,19 +1603,19 @@
             bees.push(queen);
 
             // Difficulty setting: chance to spawn under a covering bee and crawl out
-            const spawnUnder = Math.random() < settings.spawnUnderProb;
+            const spawnUnder = random() < settings.spawnUnderProb;
             let coveringBee = null;
             
             if (spawnUnder && bees.length > 1) {
                 // Select a random bee (worker/drone) and place it exactly on top of the Queen
-                const coverIndex = Math.floor(Math.random() * (bees.length - 1));
+                const coverIndex = Math.floor(random() * (bees.length - 1));
                 coveringBee = bees[coverIndex];
                 coveringBee.baseX = queen.baseX;
                 coveringBee.baseY = queen.baseY;
                 coveringBee.x = queen.baseX;
                 coveringBee.y = queen.baseY;
                 // Give it a slightly opposite crawling heading so they crawl away from each other
-                coveringBee.baseAngle = queen.baseAngle + Math.PI + (Math.random() - 0.5) * 0.5;
+                coveringBee.baseAngle = queen.baseAngle + Math.PI + (random() - 0.5) * 0.5;
             }
 
             // Sort bees so that Queen is always drawn last (on top of others),
@@ -1897,7 +2040,11 @@
         function update(currentTime) {
             if (!gameActive) return;
 
-            const timeSeconds = currentTime / 1000;
+            if (!lastFrameTime) lastFrameTime = currentTime;
+            let dt = (currentTime - lastFrameTime) / 1000;
+            lastFrameTime = currentTime;
+            if (dt > 0.1) dt = 0.1;
+
             const viewportW = canvas.width / dpr;
             const viewportH = canvas.height / dpr;
 
@@ -1929,8 +2076,35 @@
             }
 
             // 2. Update stopwatch timer
-            elapsedTime = (performance.now() - startTime) / 1000;
+            elapsedTime = (currentTime - startTime) / 1000;
             timerEl.textContent = elapsedTime.toFixed(2) + ' s';
+
+            // Dýmák (Smoke Puff) mechanics
+            if (smokeActive) {
+                smokeTimeLeft -= dt;
+                if (smokeTimeLeft <= 0) {
+                    smokeActive = false;
+                } else {
+                    // Push bees away from smoke center
+                    bees.forEach(bee => {
+                        const dx = bee.baseX - smokeX;
+                        const dy = bee.baseY - smokeY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 220 && dist > 0) {
+                            const force = (220 - dist) / 220;
+                            const pushAmount = force * 5.0 * (dt * 60);
+                            bee.baseX += (dx / dist) * pushAmount;
+                            bee.baseY += (dy / dist) * pushAmount;
+                            
+                            // Steer away
+                            const targetAngle = Math.atan2(dy, dx);
+                            let angleDiff = targetAngle - bee.angleStart;
+                            angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
+                            bee.angleStart += angleDiff * 0.15 * (dt * 60);
+                        }
+                    });
+                }
+            }
 
             // Calculate stress factor (screen shake, blur, and darkening) based on difficulty settings
             const diffSettings = DIFFICULTY_SETTINGS[selectedDifficulty];
@@ -2003,12 +2177,36 @@
             const maxY = cameraY + viewportH + cullMargin;
 
             bees.forEach(bee => {
-                bee.update(timeSeconds);
+                bee.update(elapsedTime, dt);
                 // Viewport Culling Check
                 if (bee.x >= minX && bee.x <= maxX && bee.y >= minY && bee.y <= maxY) {
                     bee.draw();
                 }
             });
+
+            // Draw smoke puff if active
+            if (smokeActive) {
+                let opacity = 0.55;
+                if (smokeTimeLeft > 2.0) {
+                    opacity = ((2.5 - smokeTimeLeft) / 0.5) * 0.55;
+                } else if (smokeTimeLeft < 0.8) {
+                    opacity = (smokeTimeLeft / 0.8) * 0.55;
+                }
+                
+                const grad = ctx.createRadialGradient(
+                    smokeX, smokeY, 15,
+                    smokeX, smokeY, 220
+                );
+                grad.addColorStop(0, `rgba(230, 230, 230, ${opacity * 0.85})`);
+                grad.addColorStop(0.3, `rgba(210, 210, 210, ${opacity * 0.65})`);
+                grad.addColorStop(0.7, `rgba(190, 190, 190, ${opacity * 0.25})`);
+                grad.addColorStop(1, 'rgba(170, 170, 170, 0)');
+                
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(smokeX, smokeY, 220, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             // 7. Update and Draw Click Ripples
             ripples = ripples.filter(ripple => {
@@ -2057,6 +2255,11 @@
         // --- SCORE PERSISTENCE ---
         function loadHighScore() {
             try {
+                if (selectedMode === 'daily') {
+                    highScoreDisplay.style.display = 'none';
+                    return;
+                }
+
                 // Migration: if the old global key exists and the new key does not, copy it to the default 'pokrocily'
                 if (selectedDifficulty === 'pokrocily' && !localStorage.getItem('najdi_kralovnu_best_time_pokrocily')) {
                     const oldSaved = localStorage.getItem('najdi_kralovnu_best_time');
@@ -2269,6 +2472,11 @@
             sounds.init(); // Initialize audio context on click
             sounds.initBuzzing(); // Start buzzing if not already started
             
+            // Set daily challenge seed if selected
+            if (selectedMode === 'daily') {
+                seed = getDailySeed();
+            }
+            
             startScreen.classList.add('hidden');
             gameScreen.classList.remove('hidden');
             
@@ -2282,6 +2490,7 @@
             // Reset stopwatch
             elapsedTime = 0;
             startTime = performance.now();
+            lastFrameTime = performance.now();
             
             // Stress & Penalty resets
             wrongClicks = 0;
@@ -2289,6 +2498,15 @@
             stressFactor = 0;
             updateErrorsDisplay();
             canvas.style.filter = '';
+            
+            // Dýmák (Smoke Puff) resets
+            smokeActive = false;
+            smokeTimeLeft = 0;
+            hasUsedSmoke = false;
+            const btnSmoke = document.getElementById('btn-smoke');
+            if (btnSmoke) {
+                btnSmoke.disabled = false;
+            }
             
             // Set HUD difficulty label
             document.getElementById('hud-difficulty-label').textContent = `🐝 ${DIFFICULTY_SETTINGS[selectedDifficulty].name}`;
@@ -2343,6 +2561,35 @@
 
         // --- LEADERBOARD FUNCTIONS ---
         let lastGameScoreSubmitted = false;
+        let useLocalLeaderboardFallback = false;
+
+        const DEFAULT_LEADERBOARD = [
+            { name: "Včelka Mája (ADV)", time: 6.82 },
+            { name: "Medový Král (ADV)", time: 9.45 },
+            { name: "Trubec Rychlík (ADV)", time: 12.10 },
+            { name: "Mladý Včelař (ADV)", time: 15.30 },
+            { name: "Medvěd Brumlík (ADV)", time: 21.05 }
+        ];
+
+        function getLocalLeaderboard() {
+            try {
+                const stored = localStorage.getItem('najdi_kralovnu_local_leaderboard');
+                if (stored) {
+                    return JSON.parse(stored);
+                }
+            } catch (e) {
+                console.warn('Cannot read local leaderboard:', e);
+            }
+            return DEFAULT_LEADERBOARD;
+        }
+
+        function saveLocalLeaderboard(data) {
+            try {
+                localStorage.setItem('najdi_kralovnu_local_leaderboard', JSON.stringify(data));
+            } catch (e) {
+                console.warn('Cannot write local leaderboard:', e);
+            }
+        }
 
         async function fetchLeaderboard(targetListId) {
             const listEl = document.getElementById(targetListId);
@@ -2354,18 +2601,19 @@
                 if (response.ok) {
                     const data = await response.json();
                     renderLeaderboard(data, targetListId);
+                    useLocalLeaderboardFallback = false;
                     return data;
                 } else {
                     throw new Error('Server returned status: ' + response.status);
                 }
             } catch (e) {
-                console.warn('Nelze načíst tabulku výsledků:', e);
-                // Graceful fallback: hide containers
-                const containerId = targetListId === 'menu-leaderboard-list' ? 'menu-leaderboard-card' : 'win-leaderboard-card';
-                const containerEl = document.getElementById(containerId);
-                if (containerEl) containerEl.style.display = 'none';
+                console.warn('Nelze načíst tabulku výsledků ze serveru, přepínám na místní tabulku:', e);
+                useLocalLeaderboardFallback = true;
+                const data = getLocalLeaderboard();
+                const sortedData = data.sort((a, b) => a.time - b.time).slice(0, 10);
+                renderLeaderboard(sortedData, targetListId);
+                return sortedData;
             }
-            return null;
         }
 
         function renderLeaderboard(data, targetListId) {
@@ -2418,6 +2666,18 @@
             const diffTag = selectedDifficulty === 'zacatecnik' ? 'BEG' : selectedDifficulty === 'pokrocily' ? 'ADV' : 'PRO';
             const fullName = `${name} (${diffTag})`;
             
+            if (useLocalLeaderboardFallback) {
+                const data = getLocalLeaderboard();
+                data.push({ name: fullName, time: parseFloat(elapsedTime.toFixed(2)) });
+                const sortedData = data.sort((a, b) => a.time - b.time).slice(0, 50);
+                saveLocalLeaderboard(sortedData);
+                
+                lastGameScoreSubmitted = true;
+                document.getElementById('leaderboard-submit-container').style.display = 'none';
+                await fetchLeaderboard('win-leaderboard-list');
+                return;
+            }
+            
             try {
                 const response = await fetch('/api/leaderboard', {
                     method: 'POST',
@@ -2428,26 +2688,133 @@
                 if (response.ok) {
                     lastGameScoreSubmitted = true;
                     document.getElementById('leaderboard-submit-container').style.display = 'none';
-                    // Re-fetch updated leaderboard and display
                     await fetchLeaderboard('win-leaderboard-list');
+                } else {
+                    throw new Error('Server returned status: ' + response.status);
                 }
             } catch (e) {
-                console.error('Chyba při ukládání skóre:', e);
-                alert('Chyba při komunikaci se serverem.');
+                console.error('Chyba při ukládání skóre na server, ukládám lokálně:', e);
+                const data = getLocalLeaderboard();
+                data.push({ name: fullName, time: parseFloat(elapsedTime.toFixed(2)) });
+                const sortedData = data.sort((a, b) => a.time - b.time).slice(0, 50);
+                saveLocalLeaderboard(sortedData);
+                
+                lastGameScoreSubmitted = true;
+                document.getElementById('leaderboard-submit-container').style.display = 'none';
+                await fetchLeaderboard('win-leaderboard-list');
             }
         }
 
         document.getElementById('btn-submit-score').addEventListener('click', submitScore);
 
         // Bind difficulty selections
-        document.querySelectorAll('.btn-difficulty').forEach(btn => {
+        document.querySelectorAll('#difficulty-selector-container .btn-difficulty').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 sounds.playTap();
-                document.querySelectorAll('.btn-difficulty').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#difficulty-selector-container .btn-difficulty').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedDifficulty = btn.dataset.level;
                 loadHighScore();
             });
+        });
+
+        // Bind game mode selection
+        const btnModeTraining = document.getElementById('btn-mode-training');
+        const btnModeDaily = document.getElementById('btn-mode-daily');
+        
+        btnModeTraining.addEventListener('click', () => {
+            sounds.playTap();
+            btnModeTraining.classList.add('active');
+            btnModeDaily.classList.remove('active');
+            selectedMode = 'training';
+            loadHighScore();
+        });
+        
+        btnModeDaily.addEventListener('click', () => {
+            sounds.playTap();
+            btnModeDaily.classList.add('active');
+            btnModeTraining.classList.remove('active');
+            selectedMode = 'daily';
+            loadHighScore();
+        });
+
+        // Bind queen marking toggle
+        const chkMarkQueen = document.getElementById('chk-mark-queen');
+        chkMarkQueen.addEventListener('change', () => {
+            isQueenMarked = chkMarkQueen.checked;
+        });
+        isQueenMarked = chkMarkQueen.checked; // Initialize
+
+        // Bind Dýmák (Smoke Puff) button click
+        const btnSmoke = document.getElementById('btn-smoke');
+        btnSmoke.addEventListener('click', () => {
+            if (!gameActive || hasUsedSmoke) return;
+            sounds.playTap();
+            
+            // Deduct +3s time penalty
+            startTime -= 3000;
+            
+            // Enable smoke
+            smokeActive = true;
+            smokeTimeLeft = 2.5;
+            hasUsedSmoke = true;
+            
+            // Center in world coordinates
+            const viewportW = canvas.width / dpr;
+            const viewportH = canvas.height / dpr;
+            smokeX = cameraX + viewportW / 2;
+            smokeY = cameraY + viewportH / 2;
+            
+            sounds.playSmokeHiss();
+            btnSmoke.disabled = true;
+        });
+
+        // Bind Share Result button click
+        const btnShareWin = document.getElementById('btn-share-win');
+        btnShareWin.addEventListener('click', async () => {
+            sounds.playTap();
+            const diffName = DIFFICULTY_SETTINGS[selectedDifficulty].name;
+            const markedStr = isQueenMarked ? "označenou" : "neoznačenou";
+            
+            let modeStr = "";
+            if (selectedMode === 'daily') {
+                const d = new Date();
+                modeStr = ` v Denní výzvě (${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()})`;
+            } else {
+                modeStr = " v tréninku";
+            }
+            
+            const shareText = `🐝 Našel jsem ${markedStr} včelí královnu za ${elapsedTime.toFixed(2)} s na obtížnost ${diffName}${modeStr}! Zkus to taky: ${window.location.href}`;
+            
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(shareText);
+                } else {
+                    // Fallback
+                    const textForm = document.createElement('textarea');
+                    textForm.value = shareText;
+                    textForm.style.position = 'fixed';
+                    document.body.appendChild(textForm);
+                    textForm.focus();
+                    textForm.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textForm);
+                }
+                
+                const originalText = btnShareWin.textContent;
+                btnShareWin.textContent = 'Zkopírováno! ✓';
+                btnShareWin.style.background = 'var(--color-success)';
+                btnShareWin.style.color = '#000';
+                
+                setTimeout(() => {
+                    btnShareWin.textContent = originalText;
+                    btnShareWin.style.background = '';
+                    btnShareWin.style.color = '';
+                }, 2000);
+            } catch (err) {
+                console.error('Nebylo možné zkopírovat text: ', err);
+                alert('Chyba při kopírování do schránky.');
+            }
         });
 
         // --- STARTUP INITIALIZATION ---
