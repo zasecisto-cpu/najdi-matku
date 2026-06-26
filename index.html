@@ -66,8 +66,11 @@
         /* Start Screen styling */
         #start-screen {
             background: radial-gradient(circle at center, #1e1b12 0%, var(--color-bg) 100%);
-            padding: 24px;
+            padding: 40px 24px;
             text-align: center;
+            overflow-y: auto;
+            justify-content: flex-start;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Ambient hexagonal CSS background for start screen */
@@ -675,6 +678,9 @@
         <div id="menu-leaderboard-card" class="legend-card" style="margin-top: 0; margin-bottom: 24px; padding: 16px; display: none;">
             <h2 class="legend-title" style="margin-bottom: 10px; font-size: 0.85rem;">🏆 Tabulka nejlepších</h2>
             <ol id="menu-leaderboard-list" style="font-size: 0.85rem; text-align: left; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: #d1d5db;"></ol>
+            <div id="leaderboard-more-btn-container" style="text-align: center; margin-top: 10px; display: none;">
+                <button id="btn-leaderboard-more" style="background: none; border: none; color: var(--color-primary); font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: underline; outline: none; padding: 4px 8px;">Zobrazit další</button>
+            </div>
         </div>
  
         <div id="high-score-display" class="high-score-badge" style="display: none;">
@@ -2606,6 +2612,9 @@
             if (listEl) {
                 listEl.innerHTML = '<li style="text-align: center; color: #9ca3af; list-style: none; margin-left: -20px;">Načítání...</li>';
             }
+            if (targetListId === 'menu-leaderboard-list') {
+                menuLeaderboardExpanded = false;
+            }
             try {
                 const response = await fetch('/api/leaderboard');
                 if (response.ok) {
@@ -2626,6 +2635,46 @@
             }
         }
 
+        function renderMenuLeaderboardItems() {
+            const listEl = document.getElementById('menu-leaderboard-list');
+            const moreBtnContainer = document.getElementById('leaderboard-more-btn-container');
+            
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            
+            const limit = menuLeaderboardExpanded ? 8 : 3;
+            const displayData = currentMenuLeaderboardData.slice(0, limit);
+            
+            displayData.forEach((entry, index) => {
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.padding = '2px 0';
+                
+                let namePrefix = '';
+                if (index === 0) namePrefix = '🥇 ';
+                else if (index === 1) namePrefix = '🥈 ';
+                else if (index === 2) namePrefix = '🥉 ';
+                
+                li.innerHTML = `
+                    <span style="${index < 3 ? 'font-weight: 600; color: #fff;' : ''}">${namePrefix}${entry.name}</span>
+                    <span style="font-variant-numeric: tabular-nums; color: ${index < 3 ? 'var(--color-primary)' : '#9ca3af'}">${entry.time.toFixed(2)} s</span>
+                `;
+                listEl.appendChild(li);
+            });
+            
+            if (moreBtnContainer) {
+                if (currentMenuLeaderboardData.length > 3 && !menuLeaderboardExpanded) {
+                    moreBtnContainer.style.display = 'block';
+                } else {
+                    moreBtnContainer.style.display = 'none';
+                }
+            }
+            
+            const containerEl = document.getElementById('menu-leaderboard-card');
+            if (containerEl) containerEl.style.display = 'block';
+        }
+
         function renderLeaderboard(data, targetListId) {
             const listEl = document.getElementById(targetListId);
             const containerId = targetListId === 'menu-leaderboard-list' ? 'menu-leaderboard-card' : 'win-leaderboard-card';
@@ -2633,6 +2682,12 @@
             
             if (!listEl || !data || data.length === 0) {
                 if (containerEl) containerEl.style.display = 'none';
+                return;
+            }
+            
+            if (targetListId === 'menu-leaderboard-list') {
+                currentMenuLeaderboardData = data;
+                renderMenuLeaderboardItems();
                 return;
             }
             
@@ -2747,6 +2802,16 @@
             selectedMode = 'daily';
             loadHighScore();
         });
+
+        // Bind leaderboard more button click
+        const btnLeaderboardMore = document.getElementById('btn-leaderboard-more');
+        if (btnLeaderboardMore) {
+            btnLeaderboardMore.addEventListener('click', () => {
+                sounds.playTap();
+                menuLeaderboardExpanded = true;
+                renderMenuLeaderboardItems();
+            });
+        }
 
         // Bind queen marking toggle
         const chkMarkQueen = document.getElementById('chk-mark-queen');
