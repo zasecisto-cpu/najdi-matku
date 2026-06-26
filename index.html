@@ -2256,7 +2256,7 @@
             // 9. Draw Beekeeper wooden frame & gloved hands (on top of panning comb in viewport space)
             const W = canvas.width / dpr;
             const H = canvas.height / dpr;
-            drawBeekeeperFrame(ctx, W, H, timeSeconds, stressFactor);
+            drawBeekeeperFrame(ctx, W, H, elapsedTime, stressFactor);
 
             // Loop next frame
             animationFrameId = requestAnimationFrame(update);
