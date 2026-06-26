@@ -2040,10 +2040,20 @@
         function update(currentTime) {
             if (!gameActive) return;
 
-            if (!lastFrameTime) lastFrameTime = currentTime;
+            if (!currentTime) {
+                currentTime = performance.now();
+            }
+
+            if (!lastFrameTime || isNaN(lastFrameTime)) {
+                lastFrameTime = currentTime;
+            }
+
             let dt = (currentTime - lastFrameTime) / 1000;
             lastFrameTime = currentTime;
-            if (dt > 0.1) dt = 0.1;
+
+            if (isNaN(dt) || dt <= 0 || dt > 0.1) {
+                dt = 0.0166;
+            }
 
             const viewportW = canvas.width / dpr;
             const viewportH = canvas.height / dpr;
