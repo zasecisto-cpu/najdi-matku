@@ -87,6 +87,7 @@
         .logo-container {
             margin-bottom: 24px;
             position: relative;
+            z-index: 5;
             animation: float 4s ease-in-out infinite;
         }
 
@@ -109,6 +110,8 @@
             max-width: 280px;
             margin: 0 auto 30px auto;
             line-height: 1.5;
+            position: relative;
+            z-index: 5;
         }
 
         /* Guide / Legend Card */
@@ -123,6 +126,8 @@
             max-width: 340px;
             margin-bottom: 35px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 5;
         }
 
         .legend-title {
@@ -224,6 +229,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             position: relative;
+            z-index: 5;
             overflow: hidden;
         }
 
@@ -606,6 +612,49 @@
             color: #fff;
             box-shadow: 0 0 12px var(--color-primary-glow);
         }
+
+        /* Decorative Start Screen Flying Bees */
+        .start-flying-bee {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+            filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+            opacity: 0.85;
+            animation-iteration-count: infinite;
+            animation-timing-function: ease-in-out;
+        }
+
+        .start-flying-bee.bee-1 {
+            width: 75px;
+            left: 8%;
+            top: 18%;
+            animation-name: fly-loop-1;
+            animation-duration: 11s;
+        }
+
+        .start-flying-bee.bee-2 {
+            width: 85px;
+            right: 8%;
+            bottom: 22%;
+            animation-name: fly-loop-2;
+            animation-duration: 14s;
+        }
+
+        @keyframes fly-loop-1 {
+            0% { transform: translate(0, 0) rotate(15deg); }
+            25% { transform: translate(20px, -25px) rotate(5deg) scaleX(-1); }
+            50% { transform: translate(45px, -5px) rotate(18deg) scaleX(-1); }
+            75% { transform: translate(15px, 20px) rotate(22deg); }
+            100% { transform: translate(0, 0) rotate(15deg); }
+        }
+
+        @keyframes fly-loop-2 {
+            0% { transform: translate(0, 0) rotate(-15deg); }
+            30% { transform: translate(-25px, 15px) rotate(-10deg) scaleX(-1); }
+            60% { transform: translate(-5px, -25px) rotate(-22deg); }
+            85% { transform: translate(20px, -8px) rotate(-8deg) scaleX(-1); }
+            100% { transform: translate(0, 0) rotate(-15deg); }
+        }
     </style>
 </head>
 <body>
@@ -613,6 +662,10 @@
     <!-- Start Screen -->
     <div id="start-screen" class="screen">
         <div class="start-bg-hex"></div>
+        
+        <!-- Floating/flying decorative bees for the start screen -->
+        <img src="Delnice.png" class="start-flying-bee bee-1" alt="Včelka">
+        <img src="Trubec.png" class="start-flying-bee bee-2" alt="Trubec">
         
         <div class="logo-container">
             <h1>Najdi královnu</h1>
@@ -633,7 +686,7 @@
         </div>
 
         <!-- Difficulty Selection -->
-        <div id="difficulty-selector-container" style="margin-bottom: 24px; display: none;">
+        <div id="difficulty-selector-container" style="margin-bottom: 24px; display: none; position: relative; z-index: 5;">
             <p class="legend-title" style="margin-bottom: 12px; font-size: 0.85rem;">Vyber obtížnost</p>
             <div style="display: flex; gap: 8px; justify-content: center;">
                 <button class="btn-difficulty" data-level="zacatecnik">Začátečník</button>
@@ -2001,6 +2054,7 @@
         }
 
         function onDragStart(e) {
+            if (!gameActive) return;
             if (e.type.startsWith('touch') && e.cancelable) e.preventDefault();
             sounds.init(); // Warm up Web Audio context immediately on interaction
             isDragging = true;
@@ -2019,6 +2073,7 @@
         }
 
         function onDragMove(e) {
+            if (!gameActive) return;
             if (e.type.startsWith('touch') && e.cancelable) e.preventDefault();
             if (!isDragging) return;
             const coords = getEventCoords(e);
@@ -2047,6 +2102,7 @@
         }
 
         function onDragEnd(e) {
+            if (!gameActive) return;
             if (e.type.startsWith('touch') && e.cancelable) e.preventDefault();
             if (!isDragging) return;
             isDragging = false;
