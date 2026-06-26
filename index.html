@@ -686,6 +686,9 @@
             
             <p class="subtitle">Najdi včelí královnu v obrovském rojícím se úlu co nejrychleji!</p>
             
+            <!-- Player Rank Badge -->
+            <div id="player-rank-badge" style="display: inline-flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); padding: 8px 16px; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);"></div>
+            
             <!-- Leaderboard Card on Menu -->
             <div id="menu-leaderboard-card" class="legend-card" style="margin-top: 0; margin-bottom: 24px; padding: 16px; display: none;">
                 <h2 class="legend-title" style="margin-bottom: 10px; font-size: 0.85rem;">🏆 Tabulka nejlepších</h2>
@@ -788,6 +791,9 @@
         <p id="win-time" class="win-time">0.00 s</p>
         
         <div id="win-new-record" class="win-high-score">🎉 NOVÝ REKORD!</div>
+        
+        <!-- Rank Promotion Banner -->
+        <div id="win-rank-promo" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.25); color: #ffe082; padding: 8px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; margin-bottom: 20px; text-shadow: 0 0 10px rgba(245, 158, 11, 0.2);"></div>
 
         <!-- Leaderboard Submit Form -->
         <div id="leaderboard-submit-container" style="margin-top: 15px; margin-bottom: 20px; display: none;">
@@ -2324,6 +2330,50 @@
             return false;
         }
 
+        // --- GAMIFICATION RANKS ---
+        function getRankLevel() {
+            try {
+                const hasPokrocily = localStorage.getItem('najdi_kralovnu_completed_pokrocily') === 'true';
+                const hasProfesional = localStorage.getItem('najdi_kralovnu_completed_profesional') === 'true';
+                const hasUnmarkedPro = localStorage.getItem('najdi_kralovnu_completed_unmarked_profesional') === 'true';
+                
+                if (hasUnmarkedPro) return 3; // Elitní chovatel matek
+                if (hasProfesional) return 2; // Mistr včelař
+                if (hasPokrocily) return 1;    // Praktik
+            } catch (e) {
+                console.warn('LocalStorage is not accessible for ranks:', e);
+            }
+            return 0; // Včelařský učeň
+        }
+
+        function updatePlayerRank() {
+            let rankEmoji = "🥚";
+            let rankName = "Včelařský učeň";
+            
+            const level = getRankLevel();
+            if (level === 3) {
+                rankEmoji = "🍯";
+                rankName = "Elitní chovatel matek";
+            } else if (level === 2) {
+                rankEmoji = "👑";
+                rankName = "Mistr včelař";
+            } else if (level === 1) {
+                rankEmoji = "🐝";
+                rankName = "Praktik";
+            }
+            
+            const badgeEl = document.getElementById('player-rank-badge');
+            if (badgeEl) {
+                badgeEl.innerHTML = `
+                    <span style="font-size: 1.5rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${rankEmoji}</span>
+                    <div style="text-align: left; display: flex; flex-direction: column;">
+                        <span style="font-size: 0.65rem; text-transform: uppercase; color: var(--color-primary); font-weight: 700; letter-spacing: 0.8px; line-height: 1.2;">Včelařská hodnost</span>
+                        <span style="font-size: 0.9rem; font-weight: 800; color: #fff; line-height: 1.2; margin-top: 1px;">${rankName}</span>
+                    </div>
+                `;
+            }
+        }
+
         function handleTap(screenX, screenY) {
             // Translate screen coordinates to canvas CSS coordinates
             const rect = canvas.getBoundingClientRect();
@@ -2396,6 +2446,38 @@
                 setTimeout(() => {
                     cancelAnimationFrame(animationFrameId);
                     
+                    const oldRank = getRankLevel();
+
+                    // Save completion achievements
+                    if (selectedDifficulty === 'zacatecnik') {
+                        localStorage.setItem('najdi_kralovnu_completed_zacatecnik', 'true');
+                    } else if (selectedDifficulty === 'pokrocily') {
+                        localStorage.setItem('najdi_kralovnu_completed_pokrocily', 'true');
+                    } else if (selectedDifficulty === 'profesional') {
+                        localStorage.setItem('najdi_kralovnu_completed_profesional', 'true');
+                        if (!isQueenMarked) {
+                            localStorage.setItem('najdi_kralovnu_completed_unmarked_profesional', 'true');
+                        }
+                    }
+
+                    const newRank = getRankLevel();
+                    updatePlayerRank();
+
+                    const rankPromoEl = document.getElementById('win-rank-promo');
+                    if (newRank > oldRank) {
+                        const ranks = [
+                            { emoji: "🥚", name: "Včelařský učeň" },
+                            { emoji: "🐝", name: "Praktik" },
+                            { emoji: "👑", name: "Mistr včelař" },
+                            { emoji: "🍯", name: "Elitní chovatel matek" }
+                        ];
+                        const promo = ranks[newRank];
+                        rankPromoEl.innerHTML = `🎉 Nová hodnost: ${promo.emoji} <strong>${promo.name}</strong>!`;
+                        rankPromoEl.style.display = 'block';
+                    } else {
+                        rankPromoEl.style.display = 'none';
+                    }
+
                     const isNewRecord = saveHighScore(elapsedTime);
                     loadHighScore();
 
@@ -2604,6 +2686,7 @@
             startScreen.classList.remove('hidden');
             loadHighScore();
             fetchLeaderboard('menu-leaderboard-list');
+            updatePlayerRank();
         }
 
         // --- BUTTON EVENTS ---
@@ -2952,6 +3035,7 @@
         initHoneycombBackground();
         loadHighScore();
         fetchLeaderboard('menu-leaderboard-list');
+        updatePlayerRank();
         
         // Warm up and start background buzzing on first user interaction anywhere
         function handleFirstInteraction() {
