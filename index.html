@@ -733,8 +733,13 @@
                 this.ctx = null;
                 this.buzzGain = null;
                 this.buzzFilter = null;
+                this.buzzNoise = null;
+                this.noiseFilter = null;
+                this.noiseGain = null;
+                this.noiseModGain = null;
                 this.buzzOsc1 = null;
                 this.buzzOsc2 = null;
+                this.buzzOsc3 = null;
                 this.buzzLFO = null;
                 this.buzzLFOGain = null;
             }
@@ -752,78 +757,135 @@
                 }
             }
 
+            createNoiseBuffer() {
+                if (!this.ctx) return null;
+                const bufferSize = this.ctx.sampleRate * 2; // 2 seconds of noise
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                return buffer;
+            }
+
             initBuzzing() {
                 this.init();
                 if (!this.ctx || this.buzzOsc1) return; // Already running or not supported
 
                 const now = this.ctx.currentTime;
                 
-                // Create Nodes
+                // 1. Create main nodes
                 this.buzzGain = this.ctx.createGain();
                 this.buzzFilter = this.ctx.createBiquadFilter();
-                
-                // Configure Filter (muffled low frequencies)
                 this.buzzFilter.type = 'lowpass';
                 this.buzzFilter.frequency.setValueAtTime(320, now);
+                this.buzzFilter.Q.setValueAtTime(1.0, now);
                 
-                // Create two main oscillators for the swarm chorusing
+                // 2. Create noise source for wing turbulence
+                this.buzzNoise = this.ctx.createBufferSource();
+                this.buzzNoise.buffer = this.createNoiseBuffer();
+                this.buzzNoise.loop = true;
+                
+                // Noise bandpass filter
+                this.noiseFilter = this.ctx.createBiquadFilter();
+                this.noiseFilter.type = 'bandpass';
+                this.noiseFilter.frequency.setValueAtTime(200, now);
+                this.noiseFilter.Q.setValueAtTime(1.5, now);
+                
+                // Noise gain to mix into audio output
+                this.noiseGain = this.ctx.createGain();
+                this.noiseGain.gain.setValueAtTime(0.04, now); // subtle background wing noise
+                
+                // Noise gain to modulate oscillator pitch (vibrato jitter)
+                this.noiseModGain = this.ctx.createGain();
+                this.noiseModGain.gain.setValueAtTime(16, now); // amount of pitch jitter
+                
+                // Connect noise source
+                this.buzzNoise.connect(this.noiseFilter);
+                this.noiseFilter.connect(this.noiseGain);
+                this.noiseFilter.connect(this.noiseModGain);
+                
+                // 3. Create three oscillators for different bee types (harmonics)
                 this.buzzOsc1 = this.ctx.createOscillator();
                 this.buzzOsc2 = this.ctx.createOscillator();
+                this.buzzOsc3 = this.ctx.createOscillator();
                 
                 this.buzzOsc1.type = 'sawtooth';
-                this.buzzOsc1.frequency.setValueAtTime(115, now); // 115 Hz hum
+                this.buzzOsc1.frequency.setValueAtTime(115, now); // deep drone hum
                 
-                this.buzzOsc2.type = 'triangle';
-                this.buzzOsc2.frequency.setValueAtTime(173, now); // 173 Hz hum (different harmonic)
+                this.buzzOsc2.type = 'sawtooth';
+                this.buzzOsc2.frequency.setValueAtTime(165, now); // worker hum
                 
-                // Low-frequency oscillator (LFO) to modulate the volume naturally
+                this.buzzOsc3.type = 'triangle';
+                this.buzzOsc3.frequency.setValueAtTime(235, now); // high hover hum
+                
+                // Connect pitch modulation (noise jitter) to oscillators
+                this.noiseModGain.connect(this.buzzOsc1.frequency);
+                this.noiseModGain.connect(this.buzzOsc2.frequency);
+                this.noiseModGain.connect(this.buzzOsc3.frequency);
+                
+                // LFO for slow volume swells (hive breathing)
                 this.buzzLFO = this.ctx.createOscillator();
                 this.buzzLFOGain = this.ctx.createGain();
-                this.buzzLFO.frequency.setValueAtTime(0.45, now); // Slow oscillation (0.45 Hz)
-                this.buzzLFOGain.gain.setValueAtTime(0.015, now); // Modulation amplitude
+                this.buzzLFO.frequency.setValueAtTime(0.35, now);
+                this.buzzLFOGain.gain.setValueAtTime(0.012, now);
                 
-                // Connect LFO to buzzGain's gain parameter
                 this.buzzLFO.connect(this.buzzLFOGain);
                 this.buzzLFOGain.connect(this.buzzGain.gain);
                 
-                // Connect Oscillators
+                // Connect oscillators to main lowpass filter
                 this.buzzOsc1.connect(this.buzzFilter);
                 this.buzzOsc2.connect(this.buzzFilter);
+                this.buzzOsc3.connect(this.buzzFilter);
                 
-                // Connect Filter to Gain, and Gain to Destination
+                // Connect wing noise to main lowpass filter
+                this.noiseGain.connect(this.buzzFilter);
+                
+                // Connect filter to main volume gain and gain to output
                 this.buzzFilter.connect(this.buzzGain);
                 this.buzzGain.connect(this.ctx.destination);
                 
-                // Set initial low volume (menu state)
-                this.buzzGain.gain.setValueAtTime(0.015, now); // Base volume
-                
                 // Start everything
+                this.buzzNoise.start(now);
                 this.buzzOsc1.start(now);
                 this.buzzOsc2.start(now);
+                this.buzzOsc3.start(now);
                 this.buzzLFO.start(now);
+                
+                // Set initial menu volume
+                this.buzzGain.gain.setValueAtTime(0.015, now);
             }
 
             setBuzzIntensity(intensity, time = 0.3) {
                 if (!this.ctx || !this.buzzGain) return;
                 const now = this.ctx.currentTime;
                 
-                // Map intensity (0.0 to 1.0) to parameters:
-                // Base gain: 0.012 to 0.065
-                const targetGain = 0.012 + intensity * 0.053;
+                // 1. Overall volume (from 0.012 to 0.075)
+                const targetGain = 0.012 + intensity * 0.063;
                 this.buzzGain.gain.setTargetAtTime(targetGain, now, time);
                 
-                // Muffled frequency filter: 280Hz to 550Hz (higher means sharper, angrier sound)
-                const targetCutoff = 280 + intensity * 270;
+                // 2. Muffled lowpass filter (280Hz to 620Hz)
+                const targetCutoff = 280 + intensity * 340;
                 this.buzzFilter.frequency.setTargetAtTime(targetCutoff, now, time);
                 
-                // Oscillator pitches (bees beat faster when angry/stressed)
-                const targetFreq1 = 115 + intensity * 35; // 115Hz to 150Hz
-                const targetFreq2 = 173 + intensity * 50; // 173Hz to 223Hz
+                // 3. Wing noise volume (more noise when angry/panicking)
+                const targetNoiseGain = 0.03 + intensity * 0.07;
+                this.noiseGain.gain.setTargetAtTime(targetNoiseGain, now, time);
+                
+                // 4. Jitter amount (bees buzz more frantically when active)
+                const targetMod = 12 + intensity * 20; // 12Hz to 32Hz jitter
+                this.noiseModGain.gain.setTargetAtTime(targetMod, now, time);
+                
+                // 5. Oscillator base frequencies
+                const targetFreq1 = 110 + intensity * 35; // 110Hz to 145Hz
+                const targetFreq2 = 160 + intensity * 45; // 160Hz to 205Hz
+                const targetFreq3 = 230 + intensity * 55; // 230Hz to 285Hz
                 this.buzzOsc1.frequency.setTargetAtTime(targetFreq1, now, time);
                 this.buzzOsc2.frequency.setTargetAtTime(targetFreq2, now, time);
+                this.buzzOsc3.frequency.setTargetAtTime(targetFreq3, now, time);
                 
-                // LFO frequency (swirling rate changes)
-                const targetLFOFreq = 0.45 + intensity * 1.5; // 0.45Hz to 1.95Hz
+                // 6. Swirling LFO rate
+                const targetLFOFreq = 0.35 + intensity * 1.6;
                 this.buzzLFO.frequency.setTargetAtTime(targetLFOFreq, now, time);
             }
 
@@ -2262,6 +2324,8 @@
                     const data = await response.json();
                     renderLeaderboard(data, targetListId);
                     return data;
+                } else {
+                    throw new Error('Server returned status: ' + response.status);
                 }
             } catch (e) {
                 console.warn('Nelze načíst tabulku výsledků:', e);
