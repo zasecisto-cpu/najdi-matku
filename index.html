@@ -732,6 +732,13 @@
             <div id="loader" class="loader-container" style="display: block;">
                 <div id="loader-bar" class="loader-bar"></div>
             </div>
+
+            <!-- How to Play Button -->
+            <div id="guide-btn-container" style="margin-top: 16px; position: relative; z-index: 5;">
+                <button id="btn-open-guide" style="background: none; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.7); padding: 8px 16px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;">
+                    📖 Jak hrát?
+                </button>
+            </div>
         </div>
     </div>
 
@@ -739,9 +746,14 @@
     <div id="game-screen" class="screen hidden">
         <!-- HUD Header -->
         <header class="hud-header">
-            <div class="hud-timer-container">
-                <span class="hud-label">Doba hledání</span>
-                <span id="timer" class="hud-timer">0.00 s</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <button id="btn-back-menu" class="btn-restart" style="padding: 8px 12px; min-width: 44px; justify-content: center; font-size: 1.1rem; line-height: 1;" title="Zpět do menu">
+                    🏠
+                </button>
+                <div class="hud-timer-container">
+                    <span class="hud-label">Doba hledání</span>
+                    <span id="timer" class="hud-timer">0.00 s</span>
+                </div>
             </div>
             
             <div class="hud-status">
@@ -768,6 +780,14 @@
             <button id="btn-smoke" class="btn-smoke">
                 <span style="font-size: 1.4rem;">💨</span>
                 <span>Dýmák</span>
+            </button>
+        </div>
+
+        <!-- Floating Hint Button -->
+        <div id="hint-btn-container" style="position: absolute; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 112px; width: 80px; height: 80px; z-index: 20; pointer-events: auto;">
+            <button id="btn-hint" class="btn-smoke">
+                <span style="font-size: 1.4rem;">💡</span>
+                <span>Nápověda</span>
             </button>
         </div>
 
@@ -814,6 +834,53 @@
             <button id="btn-restart-win" class="btn-restart-win" style="flex: 1;">Hrát znovu</button>
             <button id="btn-share-win" class="btn-restart-win" style="flex: 1; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; box-shadow: none;">Sdílet výsledek</button>
         </div>
+    </dialog>
+
+    <!-- Guide Dialog Modal -->
+    <dialog id="guide-dialog" style="background: var(--color-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--color-glass-border); border-radius: 24px; padding: 24px; color: #fff; max-width: 420px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); outline: none; margin: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                🐝 Jak hrát hru?
+            </h3>
+            <button id="btn-close-guide" style="background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; outline: none; padding: 0 4px;">&times;</button>
+        </div>
+        
+        <div style="font-size: 0.85rem; line-height: 1.5; color: #d1d5db; display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; padding-right: 8px; text-align: left;">
+            <p><strong>Cíl hry:</strong> Co nejrychleji najít včelí královnu (Matku) v obrovském rojícím se úlu.</p>
+            
+            <div>
+                <p style="margin-bottom: 4px; color: #fff; font-weight: 600;">👋 Královna vs. ostatní včely:</p>
+                <ul style="padding-left: 20px; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+                    <li><strong>Královna (Matka):</strong> Je výrazně delší, má dlouhý, špičatý zadeček a tmavší nohy.</li>
+                    <li><strong>Dělnice:</strong> Menší, nejpočetnější včely v úlu.</li>
+                    <li><strong>Trubci:</strong> Zavalitější včely s velkýma očima spojenýma uprostřed hlavy.</li>
+                </ul>
+            </div>
+            
+            <div>
+                <p style="margin-bottom: 4px; color: #fff; font-weight: 600;">🎮 Ovládání:</p>
+                <ul style="padding-left: 20px; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+                    <li><strong>Posun:</strong> Táhni prstem (mobil) nebo myší (PC) po ploše úlu.</li>
+                    <li><strong>Kliknutí:</strong> Klepnutím na královnu hru úspěšně ukončíš.</li>
+                    <li><strong>Označení:</strong> V nastavení můžeš královně zapnout/vypnout bílou tečku na zádech (tzv. značení pro rok 2026).</li>
+                </ul>
+            </div>
+            
+            <div>
+                <p style="margin-bottom: 4px; color: #fff; font-weight: 600;">🛠️ Pomocné nástroje:</p>
+                <ul style="padding-left: 20px; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+                    <li><strong>💨 Dýmák (penalta +3s):</strong> Rozfouká včely kolem místa kliknutí, aby pod nimi byla vidět královna. Lze použít 1x za hru.</li>
+                    <li><strong>💡 Nápověda (penalta +5s):</strong> Ukáže šipku v přibližném směru, kde se královna nachází. Pouze pro Pokročilé/Profesionály, 1x za hru.</li>
+                </ul>
+            </div>
+            
+            <div>
+                <p style="margin-bottom: 4px; color: #fff; font-weight: 600;">👑 Včelařský kariérní postup:</p>
+                <p style="margin: 0;">Plň obtížnosti a získávej vyšší hodnosti: 🥚 Učeň ➡️ 🐝 Praktik ➡️ 👑 Mistr ➡️ 🍯 Elitní chovatel matek (nejtěžší výzva bez značení!).</p>
+            </div>
+        </div>
+        
+        <button id="btn-close-guide-bottom" style="margin-top: 20px; width: 100%; background: var(--color-primary); color: #000; border: none; padding: 10px; border-radius: 12px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: transform 0.1s;">Rozumím</button>
     </dialog>
 
     <script>
@@ -1112,6 +1179,33 @@
                 noise.start(now);
                 noise.stop(now + 1.85);
             }
+
+            playHintSound() {
+                this.init();
+                if (!this.ctx) return;
+                
+                const now = this.ctx.currentTime;
+                // High chime sound arpeggio
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+                    
+                    gain.gain.setValueAtTime(0.0, now + idx * 0.05);
+                    gain.gain.linearRampToValueAtTime(0.08, now + idx * 0.05 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.3);
+                    
+                    osc.start(now + idx * 0.05);
+                    osc.stop(now + idx * 0.05 + 0.35);
+                });
+            }
         }
 
         const sounds = new SoundEngine();
@@ -1164,6 +1258,16 @@
         let smokePrepared = false;
 
         let selectedDifficulty = 'pokrocily';
+
+        // Consecutive spawning rules
+        let lastQueenSpawnX = null;
+        let lastQueenSpawnY = null;
+
+        // Hint (Nápověda) mechanics
+        let hintActive = false;
+        let hintTimeLeft = 0; // seconds
+        let hintAngleOffset = 0;
+        let hasUsedHint = false;
 
         const DIFFICULTY_SETTINGS = {
             zacatecnik: {
@@ -1231,6 +1335,11 @@
         const btnPlay = document.getElementById('btn-play');
         const btnRestart = document.getElementById('btn-restart');
         const btnRestartWin = document.getElementById('btn-restart-win');
+        const btnBackMenu = document.getElementById('btn-back-menu');
+        const btnHint = document.getElementById('btn-hint');
+        const hintBtnContainer = document.getElementById('hint-btn-container');
+        const guideDialog = document.getElementById('guide-dialog');
+        const btnOpenGuide = document.getElementById('btn-open-guide');
         const highScoreDisplay = document.getElementById('high-score-display');
         const highScoreVal = document.getElementById('high-score-val');
         const loaderBar = document.getElementById('loader-bar');
@@ -1603,10 +1712,20 @@
             const screenBottom = 1000 + viewportH / 2;
 
             let validPosition = false;
-            while (!validPosition) {
+            let attempts = 0;
+            while (!validPosition && attempts < 100) {
+                attempts++;
                 const margin = 120;
                 queen.baseX = margin + random() * (WORLD_WIDTH - margin * 2);
                 queen.baseY = margin + random() * (WORLD_HEIGHT - margin * 2);
+
+                // Enforce consecutive spawn distance rule (never spawn in same general location twice in a row)
+                if (selectedMode !== 'daily' && lastQueenSpawnX !== null && lastQueenSpawnY !== null) {
+                    const distToLast = Math.sqrt((queen.baseX - lastQueenSpawnX)**2 + (queen.baseY - lastQueenSpawnY)**2);
+                    if (distToLast < 400) {
+                        continue;
+                    }
+                }
 
                 const isInsideViewportBox = (queen.baseX >= screenLeft - 60 && queen.baseX <= screenRight + 60 &&
                                              queen.baseY >= screenTop - 60 && queen.baseY <= screenBottom + 60);
@@ -1627,6 +1746,10 @@
             queen.x = queen.baseX;
             queen.y = queen.baseY;
             bees.push(queen);
+
+            // Record this spawn coordinates for the next game
+            lastQueenSpawnX = queen.baseX;
+            lastQueenSpawnY = queen.baseY;
 
             // Difficulty setting: chance to spawn under a covering bee and crawl out
             const spawnUnder = random() < settings.spawnUnderProb;
@@ -2279,6 +2402,62 @@
                 ctx.restore();
             }
 
+            // 8.7. Draw hint direction arrow if active
+            if (hintActive && hintTimeLeft > 0) {
+                hintTimeLeft -= dt;
+                if (hintTimeLeft <= 0) {
+                    hintActive = false;
+                } else {
+                    ctx.save();
+                    
+                    const centerX = viewportW / 2;
+                    const centerY = viewportH / 2;
+                    
+                    // Add a subtle breathing/pulsing animation to the radius
+                    const pulse = Math.sin(elapsedTime * 8) * 5;
+                    const arrowDistance = 80 + pulse; // distance from center of screen
+                    
+                    // Let's fade out the arrow in the last 0.8 seconds
+                    let opacity = 0.85;
+                    if (hintTimeLeft < 0.8) {
+                        opacity = (hintTimeLeft / 0.8) * 0.85;
+                    }
+                    
+                    // Calculate dynamic angle to the Queen relative to the viewport center
+                    const worldCenterX = cameraX + viewportW / 2;
+                    const worldCenterY = cameraY + viewportH / 2;
+                    const dx = queen.x - worldCenterX;
+                    const dy = queen.y - worldCenterY;
+                    const baseAngle = Math.atan2(dy, dx);
+                    
+                    // Display angle is base angle plus our pre-calculated slight offset
+                    const displayAngle = baseAngle + hintAngleOffset;
+                    
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(displayAngle);
+                    
+                    // Draw a premium styled gradient arrow pointing right (which is along the positive X axis after rotate)
+                    ctx.fillStyle = `rgba(245, 158, 11, ${opacity})`; // Amber color
+                    ctx.shadowColor = 'rgba(245, 158, 11, 0.5)';
+                    ctx.shadowBlur = 15;
+                    
+                    ctx.beginPath();
+                    const ax = arrowDistance;
+                    const ay = 0;
+                    ctx.moveTo(ax + 20, ay);       // Tip
+                    ctx.lineTo(ax - 10, ay - 12);  // Top corner
+                    ctx.lineTo(ax - 5, ay - 5);    // Top inner corner
+                    ctx.lineTo(ax - 25, ay - 5);   // Top tail corner
+                    ctx.lineTo(ax - 25, ay + 5);   // Bottom tail corner
+                    ctx.lineTo(ax - 5, ay + 5);    // Bottom inner corner
+                    ctx.lineTo(ax - 10, ay + 12);  // Bottom corner
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.restore();
+                }
+            }
+
             // 9. Draw Beekeeper wooden frame & gloved hands (on top of panning comb in viewport space)
             const W = canvas.width / dpr;
             const H = canvas.height / dpr;
@@ -2651,6 +2830,21 @@
                 btnSmoke.innerHTML = '<span style="font-size: 1.4rem;">💨</span><span>Dýmák</span>';
             }
             
+            // Hint (Nápověda) resets
+            hintActive = false;
+            hintTimeLeft = 0;
+            hintAngleOffset = 0;
+            hasUsedHint = false;
+            if (btnHint) {
+                btnHint.disabled = false;
+                btnHint.style.borderColor = '';
+                btnHint.style.boxShadow = '';
+                btnHint.innerHTML = '<span style="font-size: 1.4rem;">💡</span><span>Nápověda</span>';
+            }
+            if (hintBtnContainer) {
+                hintBtnContainer.style.display = (selectedDifficulty === 'zacatecnik') ? 'none' : 'block';
+            }
+            
             // Set HUD difficulty label
             document.getElementById('hud-difficulty-label').textContent = `🐝 ${DIFFICULTY_SETTINGS[selectedDifficulty].name}`;
 
@@ -2701,6 +2895,56 @@
             sounds.playTap();
             winDialog.close();
             startGame();
+        });
+
+        // Back to Menu Button
+        btnBackMenu.addEventListener('click', () => {
+            sounds.playTap();
+            resetToMenu();
+        });
+
+        // Hint Button
+        btnHint.addEventListener('click', () => {
+            if (!gameActive || hasUsedHint || selectedDifficulty === 'zacatecnik') return;
+            sounds.playTap();
+            sounds.playHintSound();
+            
+            hintActive = true;
+            hintTimeLeft = 4.0;
+            hintAngleOffset = (random() - 0.5) * 0.6;
+            hasUsedHint = true;
+            
+            // Add +5s penalty
+            startTime -= 5000;
+            
+            btnHint.disabled = true;
+            btnHint.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+            btnHint.style.boxShadow = 'none';
+            btnHint.innerHTML = '<span style="font-size: 1.4rem;">💡</span><span>Použito</span>';
+        });
+
+        // Guide Modal Buttons
+        const btnCloseGuide = document.getElementById('btn-close-guide');
+        const btnCloseGuideBottom = document.getElementById('btn-close-guide-bottom');
+        
+        btnOpenGuide.addEventListener('click', () => {
+            sounds.playTap();
+            guideDialog.showModal();
+        });
+        
+        const closeGuide = () => {
+            sounds.playTap();
+            guideDialog.close();
+        };
+        btnCloseGuide.addEventListener('click', closeGuide);
+        btnCloseGuideBottom.addEventListener('click', closeGuide);
+        
+        // Close guide modal if clicking outside it
+        guideDialog.addEventListener('click', (e) => {
+            const rect = guideDialog.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                closeGuide();
+            }
         });
 
         // --- LEADERBOARD FUNCTIONS ---
