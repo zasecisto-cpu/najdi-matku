@@ -606,6 +606,43 @@
             to { transform: scale(1) rotate(0deg); opacity: 1; }
         }
 
+        /* Floating Bug Button */
+        #btn-open-bug {
+            position: fixed;
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            right: 16px;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+            opacity: 0.6;
+        }
+
+        #btn-open-bug:hover {
+            opacity: 1.0;
+            background: rgba(245, 158, 11, 0.12);
+            border-color: var(--color-primary);
+            color: #fff;
+            transform: scale(1.03);
+        }
+        
+        #btn-open-bug:active {
+            transform: scale(0.97);
+        }
+
         /* Difficulty Buttons */
         .btn-difficulty {
             background: rgba(255, 255, 255, 0.05);
@@ -899,6 +936,35 @@
         <button id="btn-next-round" style="width: 100%; background: var(--color-primary); color: #000; border: none; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 0.95rem; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 15px var(--color-primary-glow);">
             Spustit další kolo
         </button>
+    </dialog>
+
+    <!-- Floating Bug Report Button -->
+    <button id="btn-open-bug">
+        <span>🐞</span>
+        <span>Nahlásit chybu</span>
+    </button>
+
+    <!-- Bug Report Dialog Modal -->
+    <dialog id="bug-dialog" style="background: var(--color-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--color-glass-border); border-radius: 24px; padding: 24px; color: #fff; max-width: 380px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.6); text-align: center; outline: none; margin: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                🐞 Nahlásit chybu testerem
+            </h3>
+            <button id="btn-close-bug" style="background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; outline: none; padding: 0 4px;">&times;</button>
+        </div>
+        
+        <p style="font-size: 0.8rem; color: #9ca3af; margin: 0 0 14px; line-height: 1.4; text-align: left;">
+            Napiš podrobnosti o chybě nebo tvůj postřeh. Uložíme také informace o tvém zařízení.
+        </p>
+        
+        <textarea id="bug-desc-input" placeholder="Popiš chybu (např. 'Zasekl se mi pot v 3. kole'...)" style="width: 100%; height: 100px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; color: #fff; padding: 10px; font-size: 0.85rem; font-family: inherit; outline: none; resize: none; box-sizing: border-box; margin-bottom: 14px; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--color-primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"></textarea>
+        
+        <div id="bug-status-msg" style="font-size: 0.8rem; margin-bottom: 14px; display: none; text-align: left; padding: 8px 12px; border-radius: 8px;"></div>
+        
+        <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
+            <button id="btn-close-bug-bottom" style="flex: 1; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 10px; border-radius: 12px; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: transform 0.1s;">Zrušit</button>
+            <button id="btn-submit-bug" style="flex: 1; background: var(--color-primary); color: #000; border: none; padding: 10px; border-radius: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 12px var(--color-primary-glow);">Odeslat</button>
+        </div>
     </dialog>
 
     <script>
@@ -1435,6 +1501,13 @@
         const btnOpenGuide = document.getElementById('btn-open-guide');
         const roundDialog = document.getElementById('round-dialog');
         const btnNextRound = document.getElementById('btn-next-round');
+        const bugDialog = document.getElementById('bug-dialog');
+        const btnOpenBug = document.getElementById('btn-open-bug');
+        const btnCloseBug = document.getElementById('btn-close-bug');
+        const btnCloseBugBottom = document.getElementById('btn-close-bug-bottom');
+        const btnSubmitBug = document.getElementById('btn-submit-bug');
+        const bugDescInput = document.getElementById('bug-desc-input');
+        const bugStatusMsg = document.getElementById('bug-status-msg');
         const highScoreDisplay = document.getElementById('high-score-display');
         const highScoreVal = document.getElementById('high-score-val');
         const loaderBar = document.getElementById('loader-bar');
@@ -3356,6 +3429,89 @@
             roundDialog.close();
             proLevel++;
             startGame(true);
+        });
+
+        // Bind Bug Report Dialog Events
+        btnOpenBug.addEventListener('click', () => {
+            sounds.playTap();
+            bugDescInput.value = '';
+            bugStatusMsg.style.display = 'none';
+            bugDialog.showModal();
+        });
+
+        const closeBugDialog = () => {
+            sounds.playTap();
+            bugDialog.close();
+        };
+
+        btnCloseBug.addEventListener('click', closeBugDialog);
+        btnCloseBugBottom.addEventListener('click', closeBugDialog);
+
+        btnSubmitBug.addEventListener('click', async () => {
+            sounds.playTap();
+            const desc = bugDescInput.value.trim();
+            if (!desc) {
+                bugStatusMsg.style.display = 'block';
+                bugStatusMsg.style.background = 'rgba(239, 68, 68, 0.15)';
+                bugStatusMsg.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                bugStatusMsg.style.color = '#fca5a5';
+                bugStatusMsg.textContent = '❌ Prosím popiš chybu.';
+                return;
+            }
+
+            btnSubmitBug.disabled = true;
+            btnSubmitBug.textContent = 'Odesílám...';
+
+            let submitted = false;
+            try {
+                const response = await fetch('/api/bugs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ description: desc })
+                });
+                if (response.ok) {
+                    submitted = true;
+                }
+            } catch (e) {
+                console.warn('Backend reporting failed, falling back to LocalStorage', e);
+            }
+
+            if (!submitted) {
+                // Fallback to LocalStorage
+                try {
+                    const localBugs = JSON.parse(localStorage.getItem('najdi_kralovnu_bugs') || '[]');
+                    localBugs.push({
+                        timestamp: new Date().toISOString(),
+                        description: desc,
+                        userAgent: navigator.userAgent
+                    });
+                    localStorage.setItem('najdi_kralovnu_bugs', JSON.stringify(localBugs));
+                    submitted = true;
+                } catch (e) {
+                    console.error('LocalStorage fallback failed', e);
+                }
+            }
+
+            btnSubmitBug.disabled = false;
+            btnSubmitBug.textContent = 'Odeslat';
+
+            if (submitted) {
+                bugStatusMsg.style.display = 'block';
+                bugStatusMsg.style.background = 'rgba(16, 185, 129, 0.15)';
+                bugStatusMsg.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                bugStatusMsg.style.color = '#a7f3d0';
+                bugStatusMsg.textContent = '✅ Chyba nahlášena, děkujeme!';
+                
+                setTimeout(() => {
+                    bugDialog.close();
+                }, 1200);
+            } else {
+                bugStatusMsg.style.display = 'block';
+                bugStatusMsg.style.background = 'rgba(239, 68, 68, 0.15)';
+                bugStatusMsg.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                bugStatusMsg.style.color = '#fca5a5';
+                bugStatusMsg.textContent = '❌ Chybu se nepodařilo odeslat ani uložit.';
+            }
         });
 
         // Bind game mode selection
