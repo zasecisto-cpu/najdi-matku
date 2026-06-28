@@ -468,7 +468,9 @@
             padding: 30px 24px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(245, 158, 11, 0.15);
             text-align: center;
-            overflow: visible;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-sizing: border-box;
         }
 
         dialog::backdrop {
@@ -867,6 +869,9 @@
         <div id="win-leaderboard-card" style="background: rgba(0,0,0,0.25); border-radius: 14px; padding: 12px; margin-bottom: 20px; text-align: left; display: none;">
             <p style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; text-align: center;">🏆 Tabulka nejlepších</p>
             <ol id="win-leaderboard-list" style="font-size: 0.85rem; padding-left: 20px; color: #d1d5db; display: flex; flex-direction: column; gap: 4px;"></ol>
+            <div id="win-leaderboard-more-btn-container" style="display: none; text-align: center; margin-top: 8px;">
+                <button id="btn-win-leaderboard-more" style="background: none; border: none; color: var(--color-primary); font-size: 0.75rem; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 4px 8px; outline: none; margin: 0 auto;">ROZBALIT</button>
+            </div>
         </div>
         
         <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
@@ -1359,6 +1364,10 @@
         let fallingSweatDrops = [];
         let sweatSplats = [];
 
+        // Helper offscreen canvas for sweat splat blur/refraction effect
+        const blurCanvas = document.createElement('canvas');
+        const blurCtx = blurCanvas.getContext('2d');
+
         class FallingSweatDrop {
             constructor(w, h) {
                 this.reset(w, h);
@@ -1366,11 +1375,11 @@
             
             reset(w, h) {
                 this.x = Math.random() * w;
-                this.y = -20;
+                this.y = -40;
                 this.targetY = 100 + Math.random() * (h - 200); // splash point on the grid
-                this.speed = 3 + Math.random() * 4; // falls fast
-                this.size = 2.5 + Math.random() * 2.5;
-                this.opacity = 0.4 + Math.random() * 0.4;
+                this.speed = 4 + Math.random() * 5; // falls fast
+                this.size = 6 + Math.random() * 6; // larger sweat drops
+                this.opacity = 0.45 + Math.random() * 0.35;
             }
             
             update(w, h, dt) {
@@ -1397,32 +1406,65 @@
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.radius = 2;
-                this.maxRadius = 16 + Math.random() * 12;
-                this.opacity = 0.55;
+                this.radius = 4;
+                this.maxRadius = 35 + Math.random() * 25; // larger splats: 35px - 60px
+                this.opacity = 0.7; // higher opacity for stronger refractive look
                 this.life = 0;
-                this.maxLife = 1.2 + Math.random() * 0.8; // seconds
+                this.maxLife = 1.5 + Math.random() * 0.8; // stays longer: 1.5s - 2.3s
             }
             
             update(dt) {
                 this.life += dt;
                 const progress = this.life / this.maxLife;
-                this.radius = 2 + progress * (this.maxRadius - 2);
-                this.opacity = 0.55 * (1.0 - progress);
+                this.radius = 4 + progress * (this.maxRadius - 4);
+                this.opacity = 0.7 * (1.0 - progress);
             }
             
             draw(c) {
+                const r = this.radius;
+                const size = Math.ceil(r * 2);
+                
+                if (size > 0 && canvas) {
+                    // Copy the region directly underneath the splat from the main screen canvas
+                    blurCanvas.width = size;
+                    blurCanvas.height = size;
+                    
+                    // Convert screen coordinates to physical canvas backing pixels
+                    const sx = (this.x - r) * dpr;
+                    const sy = (this.y - r) * dpr;
+                    const sSize = size * dpr;
+                    
+                    blurCtx.clearRect(0, 0, size, size);
+                    
+                    // Draw if within bounds
+                    try {
+                        blurCtx.drawImage(canvas, sx, sy, sSize, sSize, 0, 0, size, size);
+                    } catch (e) {
+                        // ignore out of bounds
+                    }
+                    
+                    c.save();
+                    c.beginPath();
+                    c.arc(this.x, this.y, r, 0, Math.PI * 2);
+                    c.clip();
+                    
+                    // Draw the copied background back onto the main canvas, but with a blur filter!
+                    c.filter = `blur(${Math.min(5, r / 7)}px)`;
+                    c.drawImage(blurCanvas, 0, 0, size, size, this.x - r, this.y - r, size, size);
+                    c.restore();
+                }
+                
                 c.save();
-                // A splash creates an expanding dark wet spot with watery edges
-                const grad = c.createRadialGradient(this.x, this.y, this.radius * 0.1, this.x, this.y, this.radius);
-                grad.addColorStop(0, `rgba(0, 0, 0, ${this.opacity * 0.45})`);
-                grad.addColorStop(0.5, `rgba(0, 0, 0, ${this.opacity * 0.25})`);
-                grad.addColorStop(0.85, `rgba(255, 255, 255, ${this.opacity * 0.18})`); // highlight rim
+                // Draw a beautiful watery overlay with dark refraction and shiny edge reflections
+                const grad = c.createRadialGradient(this.x, this.y, r * 0.1, this.x, this.y, r);
+                grad.addColorStop(0, `rgba(0, 0, 0, ${this.opacity * 0.2})`);
+                grad.addColorStop(0.5, `rgba(0, 0, 0, ${this.opacity * 0.12})`);
+                grad.addColorStop(0.85, `rgba(255, 255, 255, ${this.opacity * 0.22})`); // white reflection highlight edge
                 grad.addColorStop(1, 'rgba(0,0,0,0)');
                 
                 c.fillStyle = grad;
                 c.beginPath();
-                c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                c.arc(this.x, this.y, r, 0, Math.PI * 2);
                 c.fill();
                 c.restore();
             }
@@ -2629,8 +2671,8 @@
             // 8.8. Draw beekeeper veil protective grid mesh (Professional Level 2 and 3)
             if (selectedDifficulty === 'profesional' && proLevel >= 2) {
                 ctx.save();
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)'; // grid line color
-                ctx.lineWidth = 1.2;
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.32)'; // grid line color (darkened)
+                ctx.lineWidth = 3.0; // grid line width (thickened)
                 
                 const cellSize = 20; // grid cell size in pixels (increased for larger gaps)
                 ctx.beginPath();
@@ -3212,6 +3254,10 @@
         // --- LEADERBOARD FUNCTIONS ---
         let lastGameScoreSubmitted = false;
         let useLocalLeaderboardFallback = false;
+        let currentMenuLeaderboardData = [];
+        let menuLeaderboardExpanded = false;
+        let currentWinLeaderboardData = [];
+        let winLeaderboardExpanded = false;
 
         const DEFAULT_LEADERBOARD = [
             { name: "Včelka Mája (ADV)", time: 6.82 },
@@ -3248,6 +3294,8 @@
             }
             if (targetListId === 'menu-leaderboard-list') {
                 menuLeaderboardExpanded = false;
+            } else {
+                winLeaderboardExpanded = false;
             }
             try {
                 const response = await fetch('/api/leaderboard');
@@ -3315,6 +3363,52 @@
             if (containerEl) containerEl.style.display = 'block';
         }
 
+        function renderWinLeaderboardItems() {
+            const listEl = document.getElementById('win-leaderboard-list');
+            const moreBtnContainer = document.getElementById('win-leaderboard-more-btn-container');
+            
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            
+            const limit = winLeaderboardExpanded ? 8 : 3;
+            const displayData = currentWinLeaderboardData.slice(0, limit);
+            
+            displayData.forEach((entry, index) => {
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.padding = '2px 0';
+                
+                let namePrefix = '';
+                if (index === 0) namePrefix = '🥇 ';
+                else if (index === 1) namePrefix = '🥈 ';
+                else if (index === 2) namePrefix = '🥉 ';
+                
+                li.innerHTML = `
+                    <span style="${index < 3 ? 'font-weight: 600; color: #fff;' : ''}">${namePrefix}${entry.name}</span>
+                    <span style="font-variant-numeric: tabular-nums; color: ${index < 3 ? 'var(--color-primary)' : '#9ca3af'}">${entry.time.toFixed(2)} s</span>
+                `;
+                listEl.appendChild(li);
+            });
+            
+            if (moreBtnContainer) {
+                const btn = document.getElementById('btn-win-leaderboard-more');
+                if (currentWinLeaderboardData.length > 3) {
+                    moreBtnContainer.style.display = 'block';
+                    if (winLeaderboardExpanded) {
+                        btn.textContent = 'ZABALIT';
+                    } else {
+                        btn.textContent = 'ROZBALIT';
+                    }
+                } else {
+                    moreBtnContainer.style.display = 'none';
+                }
+            }
+            
+            const containerEl = document.getElementById('win-leaderboard-card');
+            if (containerEl) containerEl.style.display = 'block';
+        }
+
         function renderLeaderboard(data, targetListId) {
             const listEl = document.getElementById(targetListId);
             const containerId = targetListId === 'menu-leaderboard-list' ? 'menu-leaderboard-card' : 'win-leaderboard-card';
@@ -3331,27 +3425,8 @@
                 return;
             }
             
-            listEl.innerHTML = '';
-            data.forEach((entry, index) => {
-                const li = document.createElement('li');
-                li.style.display = 'flex';
-                li.style.justifyContent = 'space-between';
-                li.style.padding = '2px 0';
-                
-                // Highlight top 3
-                let namePrefix = '';
-                if (index === 0) namePrefix = '🥇 ';
-                else if (index === 1) namePrefix = '🥈 ';
-                else if (index === 2) namePrefix = '🥉 ';
-                
-                li.innerHTML = `
-                    <span style="${index < 3 ? 'font-weight: 600; color: #fff;' : ''}">${namePrefix}${entry.name}</span>
-                    <span style="font-variant-numeric: tabular-nums; color: ${index < 3 ? 'var(--color-primary)' : '#9ca3af'}">${entry.time.toFixed(2)} s</span>
-                `;
-                listEl.appendChild(li);
-            });
-            
-            if (containerEl) containerEl.style.display = 'block';
+            currentWinLeaderboardData = data;
+            renderWinLeaderboardItems();
         }
 
         async function submitScore() {
@@ -3541,6 +3616,16 @@
                 sounds.playTap();
                 menuLeaderboardExpanded = !menuLeaderboardExpanded;
                 renderMenuLeaderboardItems();
+            });
+        }
+
+        // Bind victory leaderboard more button click
+        const btnWinLeaderboardMore = document.getElementById('btn-win-leaderboard-more');
+        if (btnWinLeaderboardMore) {
+            btnWinLeaderboardMore.addEventListener('click', () => {
+                sounds.playTap();
+                winLeaderboardExpanded = !winLeaderboardExpanded;
+                renderWinLeaderboardItems();
             });
         }
 
