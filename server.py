@@ -79,6 +79,43 @@ class GameServer(http.server.SimpleHTTPRequestHandler):
                 self.send_response(400)
                 self.end_headers()
                 self.wfile.write(str(e).encode('utf-8'))
+        elif self.path == '/api/bugs':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            
+            try:
+                bug_entry = json.loads(post_data.decode('utf-8'))
+                description = str(bug_entry.get('description', '')).strip()
+                user_agent = self.headers.get('User-Agent', 'Unknown')
+                
+                db_path = os.path.join(DIRECTORY, 'bugs.json')
+                data = []
+                if os.path.exists(db_path):
+                    try:
+                        with open(db_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                    except Exception:
+                        data = []
+                
+                import time
+                data.append({
+                    "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
+                    "description": description,
+                    "userAgent": user_agent
+                })
+                
+                with open(db_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
+            except Exception as e:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(str(e).encode('utf-8'))
         else:
             self.send_response(404)
             self.end_headers()
